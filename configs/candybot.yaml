@@ -15,10 +15,12 @@ robot:
   bins:
     chocolate:
       waypoints_file: candybot/robot/waypoints/chocolate.json
-      policy_checkpoint: null   # e.g. outputs/train/act_chocolate/checkpoints/last/pretrained_model
+      policy_checkpoint: null   # set by scripts/pull_checkpoint.sh chocolate
+      dataset_repo_id: null     # e.g. "<hf_user>/candybot_chocolate" -- must match training/train_act.sh
     candy:
       waypoints_file: candybot/robot/waypoints/candy.json
       policy_checkpoint: null
+      dataset_repo_id: null
 
 camera:
   # Set after scripts/probe_hardware.py disambiguates the real capture node (video4 vs video5, metadata node etc.)

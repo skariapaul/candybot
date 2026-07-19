@@ -39,6 +39,7 @@ lerobot-record \
   --robot.calibration_dir="$(pwd)/configs" \
   "${TELEOP_ARGS[@]}" \
   --dataset.repo_id="${HF_USER}/candybot_${BIN_NAME}" \
+  --dataset.single_task="Pick up the ${BIN_NAME} and hand it to the visitor." \
   --dataset.num_episodes=60 \
   --dataset.episode_time_s=20 \
   --dataset.push_to_hub=true

@@ -18,6 +18,10 @@ DEFAULT_CONFIG_PATH = REPO_ROOT / "configs" / "candybot.yaml"
 class BinConfig(BaseModel):
     waypoints_file: str
     policy_checkpoint: str | None = None
+    # Training dataset repo_id (e.g. "<hf_user>/candybot_chocolate") -- policy_runtime.py
+    # needs this to load normalization stats via LeRobotDatasetMetadata, not just the
+    # checkpoint weights. Must match what training/train_act.sh trained against.
+    dataset_repo_id: str | None = None
 
 
 class RobotConfig(BaseModel):

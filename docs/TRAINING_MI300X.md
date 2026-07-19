@@ -30,7 +30,7 @@ Demonstration data is collected at the edge (SO-101 leader/follower teleop + cam
    ```
    Checkpoint lands at `outputs/train/act_chocolate/checkpoints/last/pretrained_model/`.
 
-4. **Pull the checkpoint back** (`scripts/pull_checkpoint.sh`) and point `configs/candybot.yaml`'s `robot.bins.chocolate.policy_checkpoint` at it, then set `robot.action_mode: policy`.
+4. **Pull the checkpoint back** (`scripts/pull_checkpoint.sh`) and set both `robot.bins.chocolate.policy_checkpoint` (the local path it prints) and `robot.bins.chocolate.dataset_repo_id` (`$HF_USER/candybot_chocolate`) in `configs/candybot.yaml`, then `robot.action_mode: policy`. `policy_runtime.py` needs `dataset_repo_id` too -- normalization stats live in the training dataset's metadata, not just the checkpoint weights.
 
 ## Stretch goal
 
