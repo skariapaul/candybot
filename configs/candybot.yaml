@@ -28,6 +28,12 @@ camera:
   width: 640
   height: 480
   fps: 15
+  # This camera's auto-exposure badly underexposed this room's mixed lighting (near-black
+  # frames). Manual values below are tuned for THIS location as of 2026-07-19 -- re-tune at
+  # a new venue with `v4l2-ctl -d /dev/video4 --list-ctrls` / `--set-ctrl=...`.
+  auto_exposure: 1        # 1=manual, 3=auto (aperture priority)
+  exposure_time_absolute: 400
+  gain: 30
 
 audio:
   input_device_name_hint: "USB Audio"   # matched against sounddevice.query_devices() names

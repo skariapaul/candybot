@@ -17,7 +17,7 @@ Implemented as an async state machine in `candybot/orchestrator/fsm.py` (using `
 
 | Package | Responsibility |
 |---|---|
-| `candybot.voice` | ASR (faster-whisper), TTS (piper), two trigger modes (push-to-talk via `pynput`, wake-word via `openwakeword`), dialogue logic |
+| `candybot.voice` | ASR (faster-whisper), TTS (piper), two trigger modes (push-to-talk via a terminal keypress, wake-word via `openwakeword`), dialogue logic |
 | `candybot.robot` | LeRobot SO-101 follower wrapper, camera, scripted pick-and-hand motions, safety limits, (later) trained-policy inference |
 | `candybot.dashboard` | FastAPI + WebSocket server showing live camera feed, dialogue transcript/state, and this laptop's own CPU/GPU/ROCm telemetry |
 | `candybot.orchestrator` | Top-level FSM and entrypoint tying the above together |

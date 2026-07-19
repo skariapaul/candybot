@@ -21,7 +21,7 @@ Kept up to date as modules land — check here before assuming something works.
 - Actual ACT policy training — needs MI300X connection details (not yet specified in `.env`)
 - `policy_runtime.py`'s real inference path — built and wired behind the `scripted|policy` config toggle, but no trained checkpoint exists yet
 - True trade-show-floor acoustics (background noise, crowd chatter) — only desk-approximable today
-- The real physical push-to-talk button — a keyboard stand-in (`space` key via `pynput`) ships now, swappable later since most such buttons enumerate as HID keyboards
+- The real physical push-to-talk button — a keyboard stand-in (`space` key, read from the terminal's own stdin, see `docs/VOICE_MODES.md`) ships now, swappable later since most such buttons enumerate as HID keyboards and will work the same way as long as the terminal has focus
 - Performance/behavior on the actual booth hardware — see `docs/SETUP_BOOTH_MACHINE.md`
 
 ## One-time physical setup required

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from candybot.config import REPO_ROOT, CandybotConfig
-from candybot.robot.camera import make_camera_config, resolve_camera_device
+from candybot.robot.camera import apply_exposure_controls, make_camera_config, resolve_camera_device
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,9 @@ class SO101Controller:
 
         self._config = config
         self._hardware_lock = threading.Lock()
-        camera_device = resolve_camera_device(preferred=config.camera.device)
+        self._camera_device = resolve_camera_device(preferred=config.camera.device)
         camera_cfg = make_camera_config(
-            camera_device, config.camera.width, config.camera.height, config.camera.fps
+            self._camera_device, config.camera.width, config.camera.height, config.camera.fps
         )
 
         robot_cfg = SO101FollowerConfig(
@@ -63,6 +63,12 @@ class SO101Controller:
 
     def connect(self, calibrate: bool = True) -> None:
         self._robot.connect(calibrate=calibrate)
+        apply_exposure_controls(
+            self._camera_device,
+            self._config.camera.auto_exposure,
+            self._config.camera.exposure_time_absolute,
+            self._config.camera.gain,
+        )
         logger.info("SO-101 follower connected.")
 
     def disconnect(self) -> None:

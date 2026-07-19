@@ -104,26 +104,19 @@ def _trailing_silence_stop_condition(
     return should_continue
 
 
-def listen_utterance(config: "CandybotConfig") -> np.ndarray:
-    """Records one utterance, bounded according to voice.trigger_mode.
-
-    push_to_talk: waits for the configured key to be pressed, records while held.
-    wake_word: waits for the wake word, then records until trailing silence or a
-      max duration, so a non-responsive visitor doesn't hang the demo.
+def wait_for_trigger(config: "CandybotConfig", device: int | None = None) -> None:
+    """Blocks until the configured trigger fires (push-to-talk keypress or wake
+    word), without recording anything -- used both to open listen_utterance()'s
+    recording window and, in the orchestrator, to gate starting a new visitor's
+    greeting so it doesn't loop straight back into an empty booth.
     """
-    device = find_device(config.audio.input_device_name_hint, kind="input")
+    device = device if device is not None else find_device(config.audio.input_device_name_hint, kind="input")
 
     if config.voice.trigger_mode == "push_to_talk":
-        from candybot.voice.push_to_talk import is_pressed, wait_for_press
+        from candybot.voice.push_to_talk import wait_for_press
 
-        key = config.voice.push_to_talk.key
-        wait_for_press(key)
-        return record_stream(
-            should_continue=lambda audio: is_pressed(key),
-            sample_rate=config.audio.sample_rate,
-            device=device,
-            max_duration_s=15.0,
-        )
+        wait_for_press(config.voice.push_to_talk.key)
+        return
 
     if config.voice.trigger_mode == "wake_word":
         from candybot.voice.wakeword import wait_for_wake_word
@@ -131,11 +124,25 @@ def listen_utterance(config: "CandybotConfig") -> np.ndarray:
         wait_for_wake_word(
             config.voice.wake_word.model, config.voice.wake_word.threshold, device, config.audio.sample_rate
         )
-        return record_stream(
-            should_continue=_trailing_silence_stop_condition(config.audio.sample_rate),
-            sample_rate=config.audio.sample_rate,
-            device=device,
-            max_duration_s=6.0,
-        )
+        return
 
     raise ValueError(f"Unknown voice.trigger_mode: {config.voice.trigger_mode!r}")
+
+
+def listen_utterance(config: "CandybotConfig") -> np.ndarray:
+    """Records one utterance: waits for the trigger, then records until trailing
+    silence or a max duration, so a non-responsive visitor doesn't hang the demo.
+    push_to_talk is press-to-start rather than true hold-to-talk -- see
+    push_to_talk.py's docstring for why (terminal keypress detection, not a
+    global OS listener).
+    """
+    device = find_device(config.audio.input_device_name_hint, kind="input")
+    wait_for_trigger(config, device=device)
+
+    max_duration_s = 15.0 if config.voice.trigger_mode == "push_to_talk" else 6.0
+    return record_stream(
+        should_continue=_trailing_silence_stop_condition(config.audio.sample_rate),
+        sample_rate=config.audio.sample_rate,
+        device=device,
+        max_duration_s=max_duration_s,
+    )

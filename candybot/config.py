@@ -39,6 +39,13 @@ class CameraConfig(BaseModel):
     width: int
     height: int
     fps: int
+    # V4L2 exposure controls -- this camera's auto-exposure ("Aperture Priority")
+    # badly underexposed this room's mixed lighting (near-black frames). Manual
+    # values are venue-specific; re-tune with `v4l2-ctl -d <device> --list-ctrls`
+    # and `--set-ctrl=...` at a new location. auto_exposure: 1=manual, 3=auto.
+    auto_exposure: int | None = 1
+    exposure_time_absolute: int | None = 400
+    gain: int | None = 30
 
 
 class AudioConfig(BaseModel):

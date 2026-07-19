@@ -1,53 +1,43 @@
-"""Push-to-talk trigger via a keyboard keycode (pynput).
+"""Push-to-talk trigger via a single terminal keypress.
 
-A physical booth button hasn't been sourced yet -- most cheap USB
-arcade/macro buttons enumerate as an HID keyboard, so this one listener
-transparently covers both a keyboard stand-in today and the real button
-later, with no code change needed. See docs/VOICE_MODES.md.
+candybot runs as a terminal-launched kiosk app, so this reads directly from
+the process's own stdin (raw/cbreak mode) rather than a global OS-level
+listener. Confirmed empirically on this dev machine: a global listener
+(originally implemented with pynput) needs X11, and this desktop session is
+Wayland, which blocks apps from globally snooping keyboard input by design --
+pynput's Listener never received a single event here despite running
+correctly with no errors. Reading from the app's own terminal sidesteps the
+whole X11/Wayland/evdev-permissions problem entirely, and is the right model
+anyway for an app that owns the terminal it's running in.
+
+A terminal can only reliably report "a key was pressed", not press/release
+timing, so this is press-to-start rather than true hold-to-talk -- recording
+then stops on trailing silence via audio_io's VAD stop condition, the same
+mechanism wake-word mode already uses. See docs/VOICE_MODES.md.
 """
 
 from __future__ import annotations
 
-import threading
-import time
+import sys
+import termios
+import tty
 
-from pynput import keyboard
-
-_pressed_keys: set[str] = set()
-_lock = threading.Lock()
-_listener: keyboard.Listener | None = None
-
-
-def _key_name(key: keyboard.Key | keyboard.KeyCode) -> str:
-    if isinstance(key, keyboard.KeyCode):
-        return key.char or ""
-    return key.name
+_KEY_CHARS = {
+    "space": " ",
+    "enter": "\r",
+}
 
 
-def _on_press(key: keyboard.Key | keyboard.KeyCode) -> None:
-    with _lock:
-        _pressed_keys.add(_key_name(key))
-
-
-def _on_release(key: keyboard.Key | keyboard.KeyCode) -> None:
-    with _lock:
-        _pressed_keys.discard(_key_name(key))
-
-
-def _ensure_listener() -> None:
-    global _listener
-    if _listener is None:
-        _listener = keyboard.Listener(on_press=_on_press, on_release=_on_release)
-        _listener.start()
-
-
-def is_pressed(key_name: str) -> bool:
-    _ensure_listener()
-    with _lock:
-        return key_name in _pressed_keys
-
-
-def wait_for_press(key_name: str, poll_interval_s: float = 0.02) -> None:
-    _ensure_listener()
-    while not is_pressed(key_name):
-        time.sleep(poll_interval_s)
+def wait_for_press(key_name: str) -> None:
+    """Blocks until `key_name` is pressed in this terminal (no ENTER needed)."""
+    target_char = _KEY_CHARS.get(key_name, key_name[:1] if key_name else " ")
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == target_char:
+                return
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

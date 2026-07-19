@@ -26,7 +26,6 @@ voice = [
     "faster-whisper",
     "piper-tts",
     "openwakeword",
-    "pynput",
     "sounddevice",
 ]
 dashboard = [

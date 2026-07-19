@@ -29,7 +29,7 @@ from candybot.robot.so101_controller import SO101Controller
 from candybot.voice import tts
 from candybot.voice.asr import TranscriptionResult
 from candybot.voice.asr import transcribe as asr_transcribe
-from candybot.voice.audio_io import find_device, listen_utterance
+from candybot.voice.audio_io import find_device, listen_utterance, wait_for_trigger
 from candybot.voice.dialogue import ItemChoiceSession, NameCaptureSession
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,9 @@ async def run_demo_loop(config: CandybotConfig | None = None) -> None:
 
     try:
         while True:
+            logger.info("Waiting for next visitor (trigger)...")
+            await asyncio.to_thread(wait_for_trigger, config)
+
             await fsm.start()  # IDLE -> GREET
             await asyncio.to_thread(speak, "Hi there! Let's get you a treat.")
 
