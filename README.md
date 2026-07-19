@@ -27,6 +27,12 @@ python scripts/probe_hardware.py
 python -m candybot.orchestrator.run
 ```
 
+Audio device is a switchable profile (`configs/candybot.yaml`'s `audio.profile`, or override per-launch):
+
+```bash
+CANDYBOT_AUDIO_PROFILE=usb_headset python -m candybot.orchestrator.run   # or: laptop
+```
+
 ## Status
 
 Early build — see [`docs/VERIFICATION.md`](docs/VERIFICATION.md) for what's currently working vs. blocked on hardware/training access.

@@ -48,10 +48,23 @@ class CameraConfig(BaseModel):
     gain: int | None = 30
 
 
-class AudioConfig(BaseModel):
+class AudioProfile(BaseModel):
     input_device_name_hint: str
     output_device_name_hint: str
+
+
+class AudioConfig(BaseModel):
+    profile: str = "usb_headset"
+    profiles: dict[str, AudioProfile]
     sample_rate: int
+
+    @property
+    def input_device_name_hint(self) -> str:
+        return self.profiles[self.profile].input_device_name_hint
+
+    @property
+    def output_device_name_hint(self) -> str:
+        return self.profiles[self.profile].output_device_name_hint
 
 
 class PushToTalkConfig(BaseModel):
@@ -115,5 +128,12 @@ def load_config(path: Path | str | None = None) -> CandybotConfig:
         raw["robot"]["port"] = port
     if dash_port := os.environ.get("CANDYBOT_DASHBOARD_PORT"):
         raw["dashboard"]["port"] = int(dash_port)
+    if audio_profile := os.environ.get("CANDYBOT_AUDIO_PROFILE"):
+        raw["audio"]["profile"] = audio_profile
 
-    return CandybotConfig(**raw)
+    config = CandybotConfig(**raw)
+    if config.audio.profile not in config.audio.profiles:
+        raise ValueError(
+            f"audio.profile {config.audio.profile!r} not in configured profiles: {sorted(config.audio.profiles)}"
+        )
+    return config
