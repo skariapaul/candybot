@@ -135,14 +135,22 @@ def listen_utterance(config: "CandybotConfig") -> np.ndarray:
     push_to_talk is press-to-start rather than true hold-to-talk -- see
     push_to_talk.py's docstring for why (terminal keypress detection, not a
     global OS listener).
+
+    Recording happens at the input device's own native rate, then the result is
+    resampled to config.audio.sample_rate (16kHz, what faster-whisper expects) --
+    not every device accepts an InputStream opened at an arbitrary rate (e.g.
+    this laptop's built-in mic defaults to 48kHz), the same class of
+    PortAudioError play_audio() already works around for output.
     """
     device = find_device(config.audio.input_device_name_hint, kind="input")
     wait_for_trigger(config, device=device)
 
+    native_sr = int(sd.query_devices(device, kind="input")["default_samplerate"])
     max_duration_s = 15.0 if config.voice.trigger_mode == "push_to_talk" else 6.0
-    return record_stream(
-        should_continue=_trailing_silence_stop_condition(config.audio.sample_rate),
-        sample_rate=config.audio.sample_rate,
+    audio = record_stream(
+        should_continue=_trailing_silence_stop_condition(native_sr),
+        sample_rate=native_sr,
         device=device,
         max_duration_s=max_duration_s,
     )
+    return _resample(audio, native_sr, config.audio.sample_rate)
