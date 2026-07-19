@@ -42,3 +42,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["candybot*"]
+
+[tool.pytest.ini_options]
+markers = ["hardware: requires real robot/audio/camera hardware, skipped by default"]
+addopts = "-m 'not hardware'"
