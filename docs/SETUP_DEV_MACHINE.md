@@ -24,6 +24,15 @@ python scripts/probe_hardware.py  # GPU/ROCm status, serial ports, cameras, audi
 
 Log out/in once after `install_udev_rules.sh` for the `dialout`/`audio` group membership to take effect.
 
+## Voice model download (one-time)
+
+Piper TTS needs its voice model downloaded once (gitignored under `models/`, not vendored):
+
+```bash
+mkdir -p models
+python -m piper.download_voices en_US-lessac-medium --data-dir models
+```
+
 ## Physical setup
 
 Place two distinct, fixed bins — one for chocolate, one for candy — within the follower arm's reach, in the same layout `scripted_actions.py`'s waypoints assume. Document the exact positions/measurements here once `scripted_actions.py` waypoints are captured, so the layout can be reproduced at the booth.
