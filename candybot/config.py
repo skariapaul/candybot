@@ -49,6 +49,7 @@ class CameraConfig(BaseModel):
 
 
 class AudioProfile(BaseModel):
+    label: str | None = None  # human-readable name shown in the startup prompt; falls back to the profile key
     input_device_name_hint: str
     output_device_name_hint: str
 

@@ -40,9 +40,11 @@ audio:
   profile: laptop   # usb_headset | laptop
   profiles:
     usb_headset:
+      label: "USB headset"
       input_device_name_hint: "USB Audio"   # matched against sounddevice.query_devices() names
       output_device_name_hint: "USB Audio"
     laptop:
+      label: "Laptop mic and speaker"
       input_device_name_hint: "ALC215"      # built-in mic/speaker
       output_device_name_hint: "ALC215"
   sample_rate: 16000   # ASR target rate; recording/playback auto-resample from whatever the device natively uses

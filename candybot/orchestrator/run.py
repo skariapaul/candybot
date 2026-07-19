@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 import cv2
 import numpy as np
@@ -150,9 +151,43 @@ async def _run_combined(config: CandybotConfig) -> None:
     await asyncio.gather(run_demo_loop(config), server.serve())
 
 
+def _prompt_audio_profile(config: CandybotConfig) -> str:
+    """Interactively asks which audio profile to use, unless CANDYBOT_AUDIO_PROFILE
+    is already set in the environment (e.g. a non-interactive/booth launch that
+    shouldn't block on stdin).
+    """
+    if os.environ.get("CANDYBOT_AUDIO_PROFILE"):
+        return config.audio.profile
+
+    names = list(config.audio.profiles.keys())
+    default_index = names.index(config.audio.profile) + 1
+
+    print("\nSelect audio device:")
+    for i, name in enumerate(names, start=1):
+        label = config.audio.profiles[name].label or name
+        marker = " (default)" if name == config.audio.profile else ""
+        print(f"  {i}) {label}{marker}")
+
+    choice = input(f"Choice [{default_index}]: ").strip()
+    if not choice:
+        return config.audio.profile
+
+    try:
+        index = int(choice) - 1
+        if 0 <= index < len(names):
+            return names[index]
+    except ValueError:
+        pass
+
+    print(f"Invalid choice -- using default: {config.audio.profile}")
+    return config.audio.profile
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     config = load_config()
+    config.audio.profile = _prompt_audio_profile(config)
+    logger.info(f"Using audio profile: {config.audio.profile}")
     asyncio.run(_run_combined(config))
 
 
