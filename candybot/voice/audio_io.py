@@ -60,7 +60,27 @@ def record_stream(
     return np.concatenate(chunks) if chunks else np.zeros(0, dtype="float32")
 
 
+def _resample(samples: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    if orig_sr == target_sr or len(samples) == 0:
+        return samples
+    target_len = int(round(len(samples) * target_sr / orig_sr))
+    orig_indices = np.arange(len(samples))
+    target_indices = np.linspace(0, len(samples) - 1, num=target_len)
+    return np.interp(target_indices, orig_indices, samples).astype(np.float32)
+
+
 def play_audio(samples: np.ndarray, sample_rate: int, device: int | None = None) -> None:
+    """Resamples to the output device's native rate before playing -- PortAudio's
+    raw ALSA devices often reject a stream opened at a rate they don't natively
+    support (e.g. this laptop's USB headset only accepts 16kHz, but Piper TTS
+    outputs 22050Hz), raising PortAudioError('Invalid sample rate') otherwise.
+    """
+    device_info = sd.query_devices(device, kind="output") if device is not None else sd.query_devices(kind="output")
+    target_sr = int(device_info["default_samplerate"])
+    if sample_rate != target_sr:
+        samples = _resample(samples, sample_rate, target_sr)
+        sample_rate = target_sr
+
     sd.play(samples, samplerate=sample_rate, device=device)
     sd.wait()
 
