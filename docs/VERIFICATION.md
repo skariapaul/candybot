@@ -13,6 +13,7 @@ Kept up to date as modules land — check here before assuming something works.
 - **The complete orchestrator loop end-to-end** using scripted motion in place of a trained policy — i.e. a full working demo (greet → name → chocolate-or-candy → pick correct item → hand over → thank you) is achievable without any ML training
 - GPU inference validation (`hardware_probe.py` against gfx902 via `HSA_OVERRIDE_GFX_VERSION=9.0.0`) — **confirmed working** as of 2026-07-19: `torch.cuda.is_available()` is True and a real tensor op succeeds, reporting device "AMD Radeon Graphics". Unofficial-but-functional on this arch.
 - The pure-logic unit test suite (`pytest tests/`) — 16/16 passing (hardware probe fallback logic, dialogue retry/confirm, orchestrator FSM transitions)
+- `scripts/probe_hardware.py` confirmed end to end as of 2026-07-19: stable `/dev/so101_follower` symlink present, camera resolves to `/dev/video4`/`5` ("USB2.0_CAM1", distinct from the built-in HP HD/IR cameras at video0-3), GPU report as above. USB headset was unplugged at check time -- `find_device()`'s fallback-to-default logic (not yet exercised live) covers this, but voice testing needs it plugged back in.
 
 ## Blocked / deferred
 
