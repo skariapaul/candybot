@@ -8,7 +8,7 @@ ROCm 6.3 officially dropped `gfx900`-family support. `rocminfo` shows this iGPU 
 
 Per project direction, **the GPU is the target, not a nice-to-have** — `scripts/setup_env.sh` installs the ROCm PyTorch wheel with `HSA_OVERRIDE_GFX_VERSION=9.0.0` (`gfx900`, nearest officially-supported neighbor) by default. `candybot/hardware_probe.py` validates this with a real tensor op **run in a subprocess with a timeout**, so a hang doesn't take down your shell/desktop — if it fails, everything falls back to CPU automatically, but CPU is the fallback, not the plan.
 
-If `9.0.0` doesn't work, the next things to try (documented here once tested) are `9.0.6` and `9.0.9`.
+**Confirmed working as of 2026-07-19**: `HSA_OVERRIDE_GFX_VERSION=9.0.0` lets `torch` run real tensor ops on this iGPU, reporting device "AMD Radeon Graphics" -- no need to try `9.0.6`/`9.0.9`.
 
 ## Steps
 

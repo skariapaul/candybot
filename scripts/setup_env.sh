@@ -7,6 +7,13 @@ cd "$(dirname "$0")/.."
 VENV_DIR=".venv"
 GFX_OVERRIDE="${HSA_OVERRIDE_GFX_VERSION:-9.0.0}"   # gfx900, nearest ROCm-supported neighbor to this laptop's gfx902
 
+# pip buffers large wheel downloads (the ROCm torch wheel is ~4.5GB) in TMPDIR before
+# installing. Root ("/") is a small 17G partition that's already tight -- point TMPDIR
+# at this repo's own partition (/home, hundreds of GB free) instead of the /tmp default.
+export TMPDIR="$(pwd)/.pip-tmp"
+mkdir -p "$TMPDIR"
+trap 'rm -rf "$TMPDIR"' EXIT
+
 if [ ! -d "$VENV_DIR" ]; then
   echo "Creating venv at $VENV_DIR (python $(python3 --version))..."
   python3 -m venv "$VENV_DIR"

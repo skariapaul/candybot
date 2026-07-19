@@ -11,7 +11,8 @@ Kept up to date as modules land — check here before assuming something works.
 - `dialogue.py` name-capture and item-choice retry/confirm logic (unit tests with canned transcripts; live tests by speaking)
 - Dashboard: telemetry, camera feed, transcript log, live FSM state
 - **The complete orchestrator loop end-to-end** using scripted motion in place of a trained policy — i.e. a full working demo (greet → name → chocolate-or-candy → pick correct item → hand over → thank you) is achievable without any ML training
-- GPU inference validation itself (`hardware_probe.py` against gfx902 via `HSA_OVERRIDE_GFX_VERSION=9.0.0`) — this is an active target on this machine, not deferred
+- GPU inference validation (`hardware_probe.py` against gfx902 via `HSA_OVERRIDE_GFX_VERSION=9.0.0`) — **confirmed working** as of 2026-07-19: `torch.cuda.is_available()` is True and a real tensor op succeeds, reporting device "AMD Radeon Graphics". Unofficial-but-functional on this arch.
+- The pure-logic unit test suite (`pytest tests/`) — 16/16 passing (hardware probe fallback logic, dialogue retry/confirm, orchestrator FSM transitions)
 
 ## Blocked / deferred
 
