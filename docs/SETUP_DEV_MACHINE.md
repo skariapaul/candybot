@@ -15,7 +15,8 @@ Per project direction, **the GPU is the target, not a nice-to-have** — `script
 ```bash
 # System deps
 sudo apt update && sudo apt install -y python3-setuptools python3-wheel cmake build-essential \
-  ffmpeg libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev
+  ffmpeg libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev \
+  libportaudio2 v4l-utils
 
 ./scripts/setup_env.sh          # conda env, ROCm PyTorch wheel, pinned lerobot v0.4.1
 ./scripts/install_udev_rules.sh # stable /dev/so101_follower symlink, dialout group
