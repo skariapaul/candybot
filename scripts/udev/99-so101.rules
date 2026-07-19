@@ -1,0 +1,8 @@
+# Stable /dev/so101_follower symlink for the SO-101 follower arm's CH340 USB-serial adapter.
+# lsusb: "QinHeng Electronics USB Single Serial" (1a86:55d3).
+#
+# NOTE: cheap CH340 clones often share the same/no serial number, so vendor:product alone
+# won't disambiguate two identical adapters once a leader arm is also connected. If/when
+# that happens, add a second rule keyed on KERNELS=="<usb-port-path>" (find via
+# `udevadm info -a -n /dev/ttyACM0 | grep KERNELS` for each physical port) instead.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", SYMLINK+="so101_follower", MODE="0666", GROUP="dialout"

@@ -12,8 +12,8 @@ venv/
 .env
 
 # LeRobot / calibration / datasets / checkpoints
-*.calibration.json
-configs/*.calibration.json
+configs/candybot_follower.json
+configs/*_leader.json
 outputs/
 datasets/
 *.onnx
