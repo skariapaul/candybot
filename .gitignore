@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Env / secrets
+.env
+
+# LeRobot / calibration / datasets / checkpoints
+*.calibration.json
+configs/*.calibration.json
+outputs/
+datasets/
+*.onnx
+
+# Voice models (downloaded, not vendored)
+models/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log

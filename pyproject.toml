@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "candybot"
+version = "0.1.0"
+description = "Trade-show demo: SO-101 arm hands out chocolate or candy, voice-driven, running on AMD ROCm."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "pydantic>=2",
+    "pyyaml",
+    "psutil",
+    "numpy",
+    "opencv-python-headless",
+    "transitions[asyncio]",
+    # torch and lerobot are installed by scripts/setup_env.sh, not listed here:
+    # torch needs a ROCm-specific --index-url, and lerobot is pinned via git tag (see plan).
+]
+
+[project.optional-dependencies]
+voice = [
+    "faster-whisper",
+    "piper-tts",
+    "openwakeword",
+    "pynput",
+    "sounddevice",
+]
+dashboard = [
+    "fastapi",
+    "uvicorn[standard]",
+    "websockets",
+]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["candybot*"]
