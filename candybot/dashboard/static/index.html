@@ -20,6 +20,57 @@
       </div>
     </header>
 
+    <section class="hardware-panel">
+      <div class="panel-head">
+        <h2>This laptop -- live inference hardware</h2>
+        <span id="device-badge" class="device-badge">probing…</span>
+      </div>
+
+      <div class="metric-grid" id="telemetry-grid">
+        <div class="metric-tile" data-metric="cpu">
+          <div class="metric-head">
+            <span class="metric-label">CPU</span>
+            <span class="metric-value" id="stat-cpu">—</span>
+          </div>
+          <svg class="sparkline" id="spark-cpu" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="meter-track"><div class="meter-fill" id="meter-cpu" style="width:0%"></div></div>
+        </div>
+
+        <div class="metric-tile" data-metric="ram">
+          <div class="metric-head">
+            <span class="metric-label">RAM</span>
+            <span class="metric-value" id="stat-ram">—</span>
+          </div>
+          <svg class="sparkline" id="spark-ram" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="meter-track"><div class="meter-fill" id="meter-ram" style="width:0%"></div></div>
+        </div>
+
+        <div class="metric-tile" data-metric="gpu">
+          <div class="metric-head">
+            <span class="metric-label">GPU utilization</span>
+            <span class="metric-value" id="stat-gpu">—</span>
+          </div>
+          <svg class="sparkline" id="spark-gpu" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="meter-track"><div class="meter-fill" id="meter-gpu" style="width:0%"></div></div>
+        </div>
+
+        <div class="metric-tile" data-metric="vram">
+          <div class="metric-head">
+            <span class="metric-label">VRAM</span>
+            <span class="metric-value" id="stat-vram">—</span>
+          </div>
+          <svg class="sparkline" id="spark-vram" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="meter-track"><div class="meter-fill" id="meter-vram" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-chip"><span class="muted-label">GPU temp</span><span id="stat-gpu-temp">—</span></div>
+        <div class="detail-chip"><span class="muted-label">VRAM used</span><span id="stat-vram-detail">—</span></div>
+        <div class="detail-chip"><span class="muted-label">Inference target</span><span id="stat-device-note">—</span></div>
+      </div>
+    </section>
+
     <main class="layout">
       <section class="camera-panel">
         <div class="panel-head">
@@ -37,46 +88,6 @@
 
       <section class="side-panel">
         <div class="panel-head">
-          <h2>This laptop</h2>
-        </div>
-        <div class="stat-grid" id="telemetry-grid">
-          <div class="stat-tile" data-metric="device">
-            <span class="stat-label">Inference device</span>
-            <span class="stat-value" id="stat-device">probing…</span>
-            <span class="stat-note" id="stat-device-note"></span>
-          </div>
-
-          <div class="meter-tile" data-metric="cpu">
-            <div class="meter-head">
-              <span class="stat-label">CPU</span>
-              <span class="meter-value" id="stat-cpu">—</span>
-            </div>
-            <div class="meter-track"><div class="meter-fill" id="meter-cpu" style="width:0%"></div></div>
-          </div>
-
-          <div class="meter-tile" data-metric="ram">
-            <div class="meter-head">
-              <span class="stat-label">RAM</span>
-              <span class="meter-value" id="stat-ram">—</span>
-            </div>
-            <div class="meter-track"><div class="meter-fill" id="meter-ram" style="width:0%"></div></div>
-          </div>
-
-          <div class="meter-tile" data-metric="gpu">
-            <div class="meter-head">
-              <span class="stat-label">GPU (ROCm)</span>
-              <span class="meter-value" id="stat-gpu">—</span>
-            </div>
-            <div class="meter-track"><div class="meter-fill" id="meter-gpu" style="width:0%"></div></div>
-          </div>
-
-          <div class="stat-tile" data-metric="gpu-temp">
-            <span class="stat-label">GPU temp</span>
-            <span class="stat-value" id="stat-gpu-temp">—</span>
-          </div>
-        </div>
-
-        <div class="panel-head transcript-head">
           <h2>Transcript</h2>
         </div>
         <ol id="transcript-log" class="transcript-log" aria-live="polite"></ol>

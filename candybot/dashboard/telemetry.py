@@ -30,7 +30,7 @@ def _read_int(path: Path) -> int | None:
 def gpu_stats() -> dict:
     card = _find_amdgpu_card()
     if card is None:
-        return {"available": False, "busy_percent": None, "temp_c": None}
+        return {"available": False, "busy_percent": None, "temp_c": None, "vram_percent": None, "vram_used_mb": None, "vram_total_mb": None}
 
     busy = _read_int(card / "gpu_busy_percent")
 
@@ -41,7 +41,18 @@ def gpu_stats() -> dict:
             temp_c = raw / 1000.0
             break
 
-    return {"available": True, "busy_percent": busy, "temp_c": temp_c}
+    vram_used = _read_int(card / "mem_info_vram_used")
+    vram_total = _read_int(card / "mem_info_vram_total")
+    vram_percent = round(100 * vram_used / vram_total, 1) if vram_used is not None and vram_total else None
+
+    return {
+        "available": True,
+        "busy_percent": busy,
+        "temp_c": temp_c,
+        "vram_percent": vram_percent,
+        "vram_used_mb": round(vram_used / 1024 / 1024, 1) if vram_used is not None else None,
+        "vram_total_mb": round(vram_total / 1024 / 1024, 1) if vram_total is not None else None,
+    }
 
 
 def cpu_ram_stats() -> dict:
