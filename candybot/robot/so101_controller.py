@@ -7,6 +7,7 @@ so a future lerobot version bump only touches this one file.
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -30,12 +31,20 @@ REST_POSITION: dict[str, float] = {
 
 
 class SO101Controller:
-    """connect/observe/act/home wrapper around lerobot.robots.so101_follower.SO101Follower."""
+    """connect/observe/act/home wrapper around lerobot.robots.so101_follower.SO101Follower.
+
+    Internally thread-safe: get_observation()/send_action() serialize on a lock,
+    since both the orchestrator's scripted motion (candybot/robot/safety.py) and
+    the dashboard's background camera-frame publisher (task 8) call into the same
+    underlying serial bus / camera device from different threads. Callers don't
+    need to know about this -- it's transparent.
+    """
 
     def __init__(self, config: CandybotConfig):
         from lerobot.robots.so101_follower import SO101Follower, SO101FollowerConfig
 
         self._config = config
+        self._hardware_lock = threading.Lock()
         camera_device = resolve_camera_device(preferred=config.camera.device)
         camera_cfg = make_camera_config(
             camera_device, config.camera.width, config.camera.height, config.camera.fps
@@ -61,10 +70,12 @@ class SO101Controller:
         logger.info("SO-101 follower disconnected.")
 
     def get_observation(self) -> dict[str, Any]:
-        return self._robot.get_observation()
+        with self._hardware_lock:
+            return self._robot.get_observation()
 
     def send_action(self, action: dict[str, float]) -> dict[str, Any]:
-        return self._robot.send_action(action)
+        with self._hardware_lock:
+            return self._robot.send_action(action)
 
     def home(self) -> None:
         logger.info("Homing to rest position.")
