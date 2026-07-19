@@ -70,6 +70,13 @@ class SO101Controller:
         logger.info("Homing to rest position.")
         self.send_action(REST_POSITION)
 
+    def disable_torque(self) -> None:
+        """Frees the arm for manual posing -- used by scripts/capture_waypoints.py."""
+        self._robot.bus.disable_torque()
+
+    def enable_torque(self) -> None:
+        self._robot.bus.enable_torque()
+
     @property
     def is_connected(self) -> bool:
         return self._robot.is_connected
