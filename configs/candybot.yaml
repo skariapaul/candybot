@@ -36,9 +36,9 @@ camera:
   gain: 30
 
 audio:
-  input_device_name_hint: "USB Audio"   # matched against sounddevice.query_devices() names
-  output_device_name_hint: "USB Audio"
-  sample_rate: 16000
+  input_device_name_hint: "ALC215"   # laptop built-in mic/speaker -- matched against sounddevice.query_devices() names
+  output_device_name_hint: "ALC215"
+  sample_rate: 16000   # ASR target rate; recording/playback auto-resample from whatever the device natively uses
 
 voice:
   trigger_mode: push_to_talk    # push_to_talk | wake_word — push-to-talk preferred on a loud floor
