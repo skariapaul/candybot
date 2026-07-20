@@ -207,11 +207,46 @@ def _prompt_audio_profile(config: CandybotConfig) -> str:
     return config.audio.profile
 
 
+def _prompt_trigger_mode(config: CandybotConfig) -> str:
+    """Interactively asks push-to-talk vs wake-word, unless CANDYBOT_TRIGGER_MODE
+    is already set in the environment (e.g. a non-interactive/booth launch that
+    shouldn't block on stdin).
+    """
+    if os.environ.get("CANDYBOT_TRIGGER_MODE"):
+        return config.voice.trigger_mode
+
+    wake_label = config.voice.wake_word.model.replace("_", " ").title()
+    options = {"push_to_talk": "Push-to-talk", "wake_word": f'Wake word ("{wake_label}")'}
+    names = list(options.keys())
+    default_index = names.index(config.voice.trigger_mode) + 1
+
+    print("\nSelect activation mode:")
+    for i, name in enumerate(names, start=1):
+        marker = " (default)" if name == config.voice.trigger_mode else ""
+        print(f"  {i}) {options[name]}{marker}")
+
+    choice = input(f"Choice [{default_index}]: ").strip()
+    if not choice:
+        return config.voice.trigger_mode
+
+    try:
+        index = int(choice) - 1
+        if 0 <= index < len(names):
+            return names[index]
+    except ValueError:
+        pass
+
+    print(f"Invalid choice -- using default: {config.voice.trigger_mode}")
+    return config.voice.trigger_mode
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     config = load_config()
     config.audio.profile = _prompt_audio_profile(config)
     logger.info(f"Using audio profile: {config.audio.profile}")
+    config.voice.trigger_mode = _prompt_trigger_mode(config)
+    logger.info(f"Using trigger mode: {config.voice.trigger_mode}")
     asyncio.run(_run_combined(config))
 
 

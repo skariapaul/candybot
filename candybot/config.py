@@ -143,6 +143,8 @@ def load_config(path: Path | str | None = None) -> CandybotConfig:
         raw["dashboard"]["port"] = int(dash_port)
     if audio_profile := os.environ.get("CANDYBOT_AUDIO_PROFILE"):
         raw["audio"]["profile"] = audio_profile
+    if trigger_mode := os.environ.get("CANDYBOT_TRIGGER_MODE"):
+        raw["voice"]["trigger_mode"] = trigger_mode
 
     config = CandybotConfig(**raw)
     if config.audio.profile not in config.audio.profiles:
