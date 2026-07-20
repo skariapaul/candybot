@@ -7,7 +7,7 @@ from __future__ import annotations
 import numpy as np
 
 from candybot.voice.asr import TranscriptionResult
-from candybot.voice.dialogue import ItemChoiceSession, NameCaptureSession
+from candybot.voice.dialogue import CommandCaptureSession, ItemChoiceSession, NameCaptureSession
 
 
 def _confident(text: str) -> TranscriptionResult:
@@ -104,3 +104,45 @@ def test_item_choice_defaults_after_max_attempts():
         default_item="candy",
     )
     assert session.run() == "candy"
+
+
+def test_command_capture_happy_path():
+    voice = ScriptedVoice([_confident("pick up the gold cup"), _confident("yes")])
+    session = CommandCaptureSession(listen=voice.listen, transcribe=voice.transcribe, speak=voice.speak, name="Alex")
+    assert session.run() == "pick up the gold cup"
+
+
+def test_command_capture_not_title_cased_or_filler_stripped():
+    # Unlike NameCaptureSession, commands stay natural/as-spoken -- no title-casing,
+    # no "my name is"-style filler stripping (which would mangle a real command).
+    voice = ScriptedVoice([_confident("it's the white one on the left"), _confident("yeah")])
+    session = CommandCaptureSession(listen=voice.listen, transcribe=voice.transcribe, speak=voice.speak, name="Alex")
+    assert session.run() == "it's the white one on the left"
+
+
+def test_command_capture_retries_on_no_then_succeeds():
+    voice = ScriptedVoice(
+        [
+            _confident("pick up the wrong one"),
+            _confident("no"),
+            _confident("pick up the gold cup"),
+            _confident("yes"),
+        ]
+    )
+    session = CommandCaptureSession(
+        listen=voice.listen, transcribe=voice.transcribe, speak=voice.speak, name="Alex", max_attempts=3
+    )
+    assert session.run() == "pick up the gold cup"
+
+
+def test_command_capture_defaults_after_max_attempts():
+    voice = ScriptedVoice([_unconfident(), _unconfident()])
+    session = CommandCaptureSession(
+        listen=voice.listen,
+        transcribe=voice.transcribe,
+        speak=voice.speak,
+        name="Alex",
+        max_attempts=2,
+        default_command="pick up something and hand it over",
+    )
+    assert session.run() == "pick up something and hand it over"

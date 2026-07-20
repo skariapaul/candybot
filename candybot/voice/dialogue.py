@@ -97,6 +97,55 @@ class NameCaptureSession:
 
 
 @dataclass
+class CommandCaptureSession:
+    """Captures an open-ended spoken command for smolVLA's language-conditioned
+    picking (config.robot.action_mode == "smolvla"), replacing ItemChoiceSession's
+    fixed chocolate/candy classification. There's no keyword set to classify
+    against here -- the raw confirmed transcript *is* the language command
+    passed straight to the policy (see candybot/robot/policy_runtime.py's
+    run_command()), so unlike NameCaptureSession it isn't filler-stripped or
+    title-cased -- a command should stay natural, as spoken.
+    """
+
+    listen: ListenFn
+    transcribe: TranscribeFn
+    speak: SpeakFn
+    name: str
+    max_attempts: int = 3
+    default_command: str = "pick up an item and hand it to the visitor"
+
+    def run(self) -> str:
+        """Returns a confirmed command, or `default_command` if attempts are
+        exhausted -- so a confused ASR pass never stalls the demo."""
+        for attempt in range(1, self.max_attempts + 1):
+            self.speak(
+                f"What would you like me to pick up, {self.name}?"
+                if attempt == 1
+                else "Sorry, I didn't catch that -- what would you like me to pick up?"
+            )
+            result = self.transcribe(self.listen())
+            if not result.is_confident:
+                continue
+
+            command = result.text.strip().strip(".!,")
+            if not command:
+                continue
+
+            self.speak(f"Did you say: {command}? Yes or no?")
+            confirmation = _classify(self.transcribe(self.listen()).text, _YES_WORDS, _NO_WORDS)
+
+            if confirmation is None:
+                self.speak(f"Sorry, was that a yes or a no -- did you say: {command}?")
+                confirmation = _classify(self.transcribe(self.listen()).text, _YES_WORDS, _NO_WORDS)
+
+            if confirmation:
+                return command
+            # "no" (or still ambiguous, treated as no) -- loop back and retry capture
+
+        return self.default_command
+
+
+@dataclass
 class ItemChoiceSession:
     listen: ListenFn
     transcribe: TranscribeFn
