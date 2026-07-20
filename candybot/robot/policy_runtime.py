@@ -1,14 +1,20 @@
-"""ACT policy inference for a bin, using a checkpoint pulled via
-scripts/pull_checkpoint.sh. Mirrors lerobot-record's own real-robot policy
-inference pattern (make_policy / make_pre_post_processors / predict_action /
-build_dataset_frame / make_robot_action) rather than a simplified
-reimplementation -- normalization stats live in the training dataset's
-metadata, not just the checkpoint weights, so a real LeRobotDatasetMetadata
-load is unavoidable.
+"""Policy inference (ACT per-bin, or smolVLA language-conditioned), using a
+checkpoint pulled via scripts/pull_checkpoint.sh. Mirrors lerobot-record's own
+real-robot policy inference pattern (make_policy / make_pre_post_processors /
+predict_action / build_dataset_frame / make_robot_action) rather than a
+simplified reimplementation -- normalization stats live in the training
+dataset's metadata, not just the checkpoint weights, so a real
+LeRobotDatasetMetadata load is unavoidable. _load_policy() and
+_run_policy_loop() are policy-type-agnostic (PreTrainedConfig.from_pretrained
+reads the actual type from the checkpoint itself); the only real difference
+between ACT (_run, per-bin, fixed task string) and smolVLA (run_command, one
+unified policy, the actual spoken command as the task) is where the
+checkpoint/dataset_repo_id and task string come from.
 
-No trained checkpoint exists yet -- this is the runtime path, wired behind
-the same robot.action_mode: scripted|policy config toggle as
-scripted_actions.py, ready to use once training/train_act.sh produces one.
+No trained checkpoint exists yet for either -- this is the runtime path,
+wired behind config.robot.action_mode: scripted|policy|smolvla the same way
+scripted_actions.py is, ready to use once training/train_act.sh or
+training/train_smolvla.sh produces one.
 """
 
 from __future__ import annotations
@@ -54,38 +60,32 @@ def _load_policy(checkpoint_path: str, dataset_repo_id: str):
     return policy, preprocessor, postprocessor, ds_meta
 
 
-def _run(
+def _run_policy_loop(
     controller: SO101Controller,
-    config: CandybotConfig,
-    bin_name: str,
-    max_steps: int = _DEFAULT_MAX_STEPS,
-    hz: float = _DEFAULT_HZ,
+    policy,
+    preprocessor,
+    postprocessor,
+    ds_meta,
+    task: str,
+    max_steps: int,
+    hz: float,
 ) -> None:
+    """Closed-loop inference shared by ACT (_run) and smolVLA (run_command) --
+    the only difference between them is where the checkpoint and task string
+    come from, not this control loop itself.
+    """
     from lerobot.datasets.utils import build_dataset_frame
     from lerobot.policies.utils import make_robot_action
     from lerobot.utils.constants import OBS_STR
     from lerobot.utils.control_utils import predict_action
     from lerobot.utils.utils import get_safe_torch_device
 
-    bin_config = config.robot.bins[bin_name]
-    if not bin_config.policy_checkpoint or not bin_config.dataset_repo_id:
-        raise PolicyNotReadyError(
-            f"Bin '{bin_name}' has no policy_checkpoint/dataset_repo_id configured. "
-            f"Run training/train_act.sh then scripts/pull_checkpoint.sh, and set "
-            f"configs/candybot.yaml's robot.bins.{bin_name} fields."
-        )
-
-    policy, preprocessor, postprocessor, ds_meta = _load_policy(
-        bin_config.policy_checkpoint, bin_config.dataset_repo_id
-    )
     policy.reset()
     preprocessor.reset()
     postprocessor.reset()
 
-    task = f"Pick up the {bin_name} and hand it to the visitor."
     period_s = 1.0 / hz
-
-    logger.info(f"Running ACT policy for '{bin_name}' on device={policy.config.device}, {max_steps} steps @ {hz}Hz")
+    device = get_safe_torch_device(policy.config.device)
 
     for step in range(max_steps):
         step_start = time.perf_counter()
@@ -96,7 +96,7 @@ def _run(
         action_values = predict_action(
             observation=observation_frame,
             policy=policy,
-            device=get_safe_torch_device(policy.config.device),
+            device=device,
             preprocessor=preprocessor,
             postprocessor=postprocessor,
             use_amp=policy.config.use_amp,
@@ -110,6 +110,29 @@ def _run(
         if elapsed < period_s:
             time.sleep(period_s - elapsed)
 
+
+def _run(
+    controller: SO101Controller,
+    config: CandybotConfig,
+    bin_name: str,
+    max_steps: int = _DEFAULT_MAX_STEPS,
+    hz: float = _DEFAULT_HZ,
+) -> None:
+    bin_config = config.robot.bins[bin_name]
+    if not bin_config.policy_checkpoint or not bin_config.dataset_repo_id:
+        raise PolicyNotReadyError(
+            f"Bin '{bin_name}' has no policy_checkpoint/dataset_repo_id configured. "
+            f"Run training/train_act.sh then scripts/pull_checkpoint.sh, and set "
+            f"configs/candybot.yaml's robot.bins.{bin_name} fields."
+        )
+
+    policy, preprocessor, postprocessor, ds_meta = _load_policy(
+        bin_config.policy_checkpoint, bin_config.dataset_repo_id
+    )
+    task = f"Pick up the {bin_name} and hand it to the visitor."
+
+    logger.info(f"Running ACT policy for '{bin_name}' on device={policy.config.device}, {max_steps} steps @ {hz}Hz")
+    _run_policy_loop(controller, policy, preprocessor, postprocessor, ds_meta, task, max_steps, hz)
     logger.info(f"Policy run for '{bin_name}' complete ({max_steps} steps).")
 
 
@@ -122,3 +145,31 @@ def pick_candy(controller: SO101Controller, config: CandybotConfig) -> None:
 
 
 ACTIONS = {"chocolate": pick_chocolate, "candy": pick_candy}
+
+
+def run_command(
+    controller: SO101Controller,
+    config: CandybotConfig,
+    command: str,
+    max_steps: int = _DEFAULT_MAX_STEPS,
+    hz: float = _DEFAULT_HZ,
+) -> None:
+    """Runs the smolVLA policy with `command` (the visitor's actual captured
+    speech, from CommandCaptureSession) as the language-conditioning task --
+    unlike ACT's per-bin fixed strings, this is the real point of a VLA model.
+    One unified policy/dataset for config.robot.action_mode == "smolvla", not
+    one per item.
+    """
+    smolvla_config = config.robot.smolvla
+    if not smolvla_config.checkpoint or not smolvla_config.dataset_repo_id:
+        raise PolicyNotReadyError(
+            "robot.smolvla has no checkpoint/dataset_repo_id configured. "
+            "Run training/train_smolvla.sh then scripts/pull_checkpoint.sh, and set "
+            "configs/candybot.yaml's robot.smolvla fields."
+        )
+
+    policy, preprocessor, postprocessor, ds_meta = _load_policy(smolvla_config.checkpoint, smolvla_config.dataset_repo_id)
+
+    logger.info(f"Running smolVLA policy for command={command!r} on device={policy.config.device}, {max_steps} steps @ {hz}Hz")
+    _run_policy_loop(controller, policy, preprocessor, postprocessor, ds_meta, command, max_steps, hz)
+    logger.info(f"smolVLA run for command={command!r} complete ({max_steps} steps).")

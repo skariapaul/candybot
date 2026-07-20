@@ -24,14 +24,24 @@ class BinConfig(BaseModel):
     dataset_repo_id: str | None = None
 
 
+class SmolVLAConfig(BaseModel):
+    # Unlike bins.*, this is a single unified policy/dataset -- smolVLA is
+    # language-conditioned at inference time (the captured voice command IS
+    # the task), not one checkpoint per fixed item. See policy_runtime.py's
+    # run_command().
+    checkpoint: str | None = None
+    dataset_repo_id: str | None = None
+
+
 class RobotConfig(BaseModel):
     type: str = "so101_follower"
     port: str
     id: str
     calibration_path: str
-    action_mode: str = "scripted"
+    action_mode: str = "scripted"  # scripted | policy | smolvla
     max_relative_target: float = 20
     bins: dict[str, BinConfig]
+    smolvla: SmolVLAConfig = SmolVLAConfig()
 
 
 class CameraConfig(BaseModel):
@@ -98,6 +108,8 @@ class DialogueConfig(BaseModel):
     max_name_attempts: int = 3
     max_item_attempts: int = 2
     item_choice_default: str = "candy"
+    max_command_attempts: int = 3
+    command_default: str = "pick up an item and hand it to the visitor"
 
 
 class DashboardConfig(BaseModel):
