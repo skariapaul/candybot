@@ -253,6 +253,7 @@ html, body {
 }
 
 .camera-frame {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   border-radius: 10px;
@@ -266,6 +267,22 @@ html, body {
   object-fit: contain;
   display: block;
 }
+
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: #000;
+  pointer-events: none;
+}
+.camera-placeholder-icon { font-size: 22px; opacity: 0.5; }
+.camera-frame.has-signal .camera-placeholder { display: none; }
 
 .muted-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 

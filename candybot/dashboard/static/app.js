@@ -173,9 +173,6 @@ function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
 
-  ws.onopen = () => {
-    cameraStatus.textContent = "live";
-  };
   ws.onmessage = (event) => {
     try {
       handleMessage(JSON.parse(event.data));
@@ -190,11 +187,15 @@ function connect() {
   ws.onerror = () => ws.close();
 }
 
+const cameraFrame = document.querySelector(".camera-frame");
+
 cameraFeed.onerror = () => {
   cameraStatus.textContent = "no camera signal";
+  cameraFrame.classList.remove("has-signal");
 };
 cameraFeed.onload = () => {
   cameraStatus.textContent = "live";
+  cameraFrame.classList.add("has-signal");
 };
 
 initAvatar("avatar-container");
