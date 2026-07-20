@@ -220,19 +220,47 @@ def _patch_torchaudio_list_backends() -> str:
 
 
 def _patch_piper_generate_samples() -> str:
-    """Wrap ``piper_sample_generator.generate_samples`` to inject *model=*
-    when the caller omits it (API changed in piper-sample-generator v2+)."""
-    try:
-        import piper_sample_generator as psg
-    except ImportError:
-        return "skipped (piper_sample_generator not installed)"
+    """Provide a top-level ``generate_samples`` module exposing
+    ``generate_samples()`` with *model=* auto-injected when omitted.
 
-    if getattr(psg, "_oww_generate_patched", False):
+    ``openwakeword.train`` was written against an older piper-sample-generator
+    repo layout that shipped a standalone ``generate_samples.py`` script (it
+    does ``sys.path.insert(0, <piper_sample_generator_path>); from
+    generate_samples import generate_samples``). What's actually installed
+    (piper-sample-generator 3.2.0, a real pip package) restructured that into
+    ``piper_sample_generator.__main__.generate_samples`` and dropped the
+    top-level script entirely, so that import fails outright with
+    ``ModuleNotFoundError: No module named 'generate_samples'``. We register
+    a synthetic ``generate_samples`` module in ``sys.modules`` pointing at
+    the real function, which also needs *model=* injected since
+    ``openwakeword.train``'s call sites never pass it (API changed in
+    piper-sample-generator v2+).
+    """
+    import types
+
+    if "generate_samples" in sys.modules and getattr(
+        sys.modules["generate_samples"], "_oww_shim", False
+    ):
         return "ok (already patched)"
 
-    _orig_generate = getattr(psg, "generate_samples", None)
-    if _orig_generate is None:
-        return "skipped (generate_samples not found)"
+    try:
+        import piper_sample_generator as psg
+    except ImportError as exc:
+        return f"skipped (piper_sample_generator not installed: {exc})"
+
+    # piper_sample_generator.__main__ imports piper_train.vits.commons,
+    # which lives as a plain subdirectory of the repo root (not a pip
+    # package) -- put that root on sys.path before importing __main__,
+    # same as openwakeword.train itself does for its own (now-broken)
+    # top-level `generate_samples.py` import.
+    repo_root = Path(psg.__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    try:
+        from piper_sample_generator.__main__ import generate_samples as _orig_generate
+    except ImportError as exc:
+        return f"skipped (piper_sample_generator.__main__ import failed: {exc})"
 
     def _wrapped(*args, **kwargs):
         if "model" not in kwargs:
@@ -247,9 +275,16 @@ def _patch_piper_generate_samples() -> str:
                     break
         return _orig_generate(*args, **kwargs)
 
+    shim = types.ModuleType("generate_samples")
+    shim.generate_samples = _wrapped
+    shim._oww_shim = True
+    sys.modules["generate_samples"] = shim
+
+    # Also patch the real package's attribute, in case anything imports it
+    # the "modern" way (`from piper_sample_generator import generate_samples`).
     psg.generate_samples = _wrapped
-    psg._oww_generate_patched = True
-    return "applied"
+
+    return "applied (shim module + model= auto-inject)"
 
 
 def _patch_scipy_sph_harm() -> str:
