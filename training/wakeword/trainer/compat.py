@@ -98,6 +98,15 @@ def verify_all() -> dict[str, bool]:
     except ImportError:
         results["pkg_resources"] = False
 
+    # ── scipy.special.sph_harm (needed by the `acoustics` package) ──
+    try:
+        import acoustics.directivity  # noqa: F401
+
+        results["scipy.special.sph_harm"] = True
+    except Exception as exc:
+        results["scipy.special.sph_harm"] = False
+        log.warning("  verify scipy.special.sph_harm  FAILED: %s", exc)
+
     for name, ok in results.items():
         log.info("  verify %-30s %s", name, "PASS" if ok else "FAIL")
 
@@ -243,6 +252,34 @@ def _patch_piper_generate_samples() -> str:
     return "applied"
 
 
+def _patch_scipy_sph_harm() -> str:
+    """Restore ``scipy.special.sph_harm`` (removed in scipy>=1.15, replaced
+    by ``sph_harm_y`` with a different argument order/convention).
+
+    ``openwakeword.data`` imports the old ``acoustics`` package (0.2.6,
+    last released 2018) for directivity utilities we don't otherwise use;
+    ``acoustics.directivity`` still calls the removed ``sph_harm``, which
+    crashes the import outright on modern scipy. Old ``sph_harm(m, n,
+    theta, phi)`` used theta=azimuthal/phi=polar; new ``sph_harm_y(n, m,
+    theta, phi)`` uses theta=polar/phi=azimuthal — both the argument
+    order (m, n -> n, m) and the theta/phi meanings swap.
+    """
+    import scipy.special
+
+    if hasattr(scipy.special, "sph_harm"):
+        return "ok (still present)"
+    if not hasattr(scipy.special, "sph_harm_y"):
+        return "skipped (sph_harm_y not found either)"
+
+    sph_harm_y = scipy.special.sph_harm_y
+
+    def _sph_harm(m, n, theta, phi):
+        return sph_harm_y(n, m, phi, theta)
+
+    scipy.special.sph_harm = _sph_harm
+    return "applied (shim over sph_harm_y)"
+
+
 def _patch_oww_data_sample_rate() -> str:
     """Suppress openwakeword's sample-rate ValueError.
 
@@ -273,6 +310,7 @@ def _patch_oww_data_sample_rate() -> str:
 
 _PATCHES = [
     ("setuptools/pkg_resources", _ensure_pkg_resources),
+    ("scipy.special.sph_harm", _patch_scipy_sph_harm),
     ("torchaudio.load", _patch_torchaudio_load),
     ("torchaudio.info", _patch_torchaudio_info),
     ("torchaudio.list_audio_backends", _patch_torchaudio_list_backends),
