@@ -104,9 +104,19 @@ def _trailing_silence_stop_condition(
     quietest ~100ms block observed so far in *this* recording is tracked as a
     running floor estimate (refined continuously, never reset upward), and
     the trailing window must drop within `silence_multiplier` of that floor.
+
+    Whether speech was ever detected is tracked as a *sticky* flag (the
+    loudest block seen so far exceeded the threshold at some point), not by
+    comparing the whole clip's running average against the threshold. The
+    latter was a real bug found live: for a short reply ("Yes", a name), as
+    trailing silence piled up it diluted the whole-clip average back down
+    below threshold, flipping "has speech" back to false and permanently
+    disabling the stop condition -- self-reinforcing, so short utterances
+    reliably ran to the full max_duration_s while longer sentences (where
+    speech is a bigger fraction of the clip) usually stopped correctly.
     """
     silence_samples = int(sample_rate * silence_s)
-    state = {"floor": None, "seen": 0}
+    state = {"floor": None, "peak": 0.0, "seen": 0}
 
     def should_continue(audio: np.ndarray) -> bool:
         new_block = audio[state["seen"] :]
@@ -114,14 +124,15 @@ def _trailing_silence_stop_condition(
         if len(new_block) > 0:
             block_rms = float(np.sqrt(np.mean(new_block.astype(np.float64) ** 2)))
             state["floor"] = block_rms if state["floor"] is None else min(state["floor"], block_rms)
+            state["peak"] = max(state["peak"], block_rms)
 
         if len(audio) < silence_samples:
             return True
 
         threshold = max(absolute_floor, (state["floor"] or absolute_floor) * silence_multiplier)
         tail_rms = float(np.sqrt(np.mean(audio[-silence_samples:] ** 2)))
-        has_speech = float(np.sqrt(np.mean(audio.astype(np.float64) ** 2))) > threshold
-        return not (has_speech and tail_rms < threshold)
+        had_speech = state["peak"] > threshold
+        return not (had_speech and tail_rms < threshold)
 
     return should_continue
 

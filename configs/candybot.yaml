@@ -47,8 +47,12 @@ audio:
   profiles:
     usb_headset:
       label: "USB headset"
-      input_device_name_hint: "USB Audio"   # matched against sounddevice.query_devices() names
-      output_device_name_hint: "USB Audio"
+      # "USB Audio" alone is too generic -- it also matches other USB devices' audio
+      # interfaces (e.g. a webcam's built-in mic shows up as "<webcam name>: USB Audio"
+      # too, and whichever enumerates first wins). "Poly Blackwire" uniquely identifies
+      # the actual headset. Re-check with `python -c "import sounddevice as sd; [print(i,d['name']) for i,d in enumerate(sd.query_devices())]"` if the headset model changes.
+      input_device_name_hint: "Poly Blackwire"   # matched against sounddevice.query_devices() names
+      output_device_name_hint: "Poly Blackwire"
     laptop:
       label: "Laptop mic and speaker"
       input_device_name_hint: "ALC215"      # built-in mic/speaker
