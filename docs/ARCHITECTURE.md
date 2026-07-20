@@ -9,9 +9,13 @@ IDLE → GREET → CAPTURE_NAME → CONFIRM_NAME → ASK_ITEM_CHOICE → PICK_AN
 Implemented as an async state machine in `candybot/orchestrator/fsm.py` (using `transitions.extensions.asyncio.AsyncMachine`). The orchestrator (`candybot/orchestrator/run.py`) wires together the voice, robot, and dashboard subsystems and drives this FSM.
 
 - **CAPTURE_NAME / CONFIRM_NAME**: delegated to `candybot.voice.dialogue.NameCaptureSession` — retries on low-confidence ASR, strips filler phrases ("my name is..."), confirms against a yes/no keyword set (easier ASR target than a name), falls back to addressing the visitor as "friend" after 3 attempts so the demo never stalls.
-- **ASK_ITEM_CHOICE**: delegated to `candybot.voice.dialogue.ItemChoiceSession` — classifies the response against two small keyword sets (chocolate vs candy), defaults to candy after repeated failures.
-- **PICK_AND_HAND**: dispatches to `candybot.robot.scripted_actions.pick_chocolate()`/`pick_candy()` (hand-authored waypoints, works today) or `candybot.robot.policy_runtime` (trained ACT checkpoint, once available) based on `robot.action_mode` in `configs/candybot.yaml`.
+- **ASK_ITEM_CHOICE**: `robot.action_mode` in `configs/candybot.yaml` selects between two dialogue paths -- `scripted`/`policy` use `candybot.voice.dialogue.ItemChoiceSession` (classifies against two small keyword sets, chocolate vs candy, defaults to candy after repeated failures); `smolvla` uses `CommandCaptureSession` instead, capturing an open-ended spoken command with no fixed classification (see `docs/SMOLVLA.md`).
+- **PICK_AND_HAND**: dispatches to `candybot.robot.scripted_actions.pick_chocolate()`/`pick_candy()` (hand-authored waypoints, works today), `candybot.robot.policy_runtime.ACTIONS` (trained per-bin ACT checkpoint), or `policy_runtime.run_command()` (unified smolVLA policy, language-conditioned on the captured command) based on the same `robot.action_mode`.
 - **THANK_YOU**: TTS closing line, then back to `RESET`/`IDLE`.
+
+## Zen, the dashboard avatar
+
+The dashboard's primary visual is "Zen", a CPU-chip mascot built entirely from Three.js primitives (`candybot/dashboard/static/avatar.js`) -- no external asset, no third-party avatar library. Audio stays server-side through the existing `audio.profile` system; `run.py`'s `speak()` closure computes a volume envelope from the synthesized TTS audio (`tts.compute_envelope()`) and publishes it over the dashboard WebSocket as a `SpeechEvent` before playback starts, and the browser drives Zen's mouth on a timer matching the announced duration -- an approximation, not frame-accurate lip sync, but it doesn't touch the actual audio path.
 
 ## Subsystems
 

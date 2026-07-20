@@ -25,13 +25,13 @@ from candybot.dashboard import state as dashboard_state
 from candybot.hardware_probe import get_device
 from candybot.orchestrator.events import SpeechEvent, StateChangeEvent, TranscriptEvent
 from candybot.orchestrator.fsm import CandybotFSM
-from candybot.robot import scripted_actions
+from candybot.robot import policy_runtime, scripted_actions
 from candybot.robot.so101_controller import SO101Controller
 from candybot.voice import tts
 from candybot.voice.asr import TranscriptionResult
 from candybot.voice.asr import transcribe as asr_transcribe
 from candybot.voice.audio_io import find_device, listen_utterance, play_audio, wait_for_trigger
-from candybot.voice.dialogue import ItemChoiceSession, NameCaptureSession
+from candybot.voice.dialogue import CommandCaptureSession, ItemChoiceSession, NameCaptureSession
 
 logger = logging.getLogger(__name__)
 
@@ -120,19 +120,35 @@ async def run_demo_loop(config: CandybotConfig | None = None) -> None:
             name = await asyncio.to_thread(name_session.run)
 
             await fsm.name_captured()  # -> ASK_ITEM_CHOICE
-            item_session = ItemChoiceSession(
-                listen=listen,
-                transcribe=transcribe,
-                speak=speak,
-                name=name,
-                max_attempts=config.dialogue.max_item_attempts,
-                default_item=config.dialogue.item_choice_default,
-            )
-            item = await asyncio.to_thread(item_session.run)
+            if config.robot.action_mode == "smolvla":
+                command_session = CommandCaptureSession(
+                    listen=listen,
+                    transcribe=transcribe,
+                    speak=speak,
+                    name=name,
+                    max_attempts=config.dialogue.max_command_attempts,
+                    default_command=config.dialogue.command_default,
+                )
+                command = await asyncio.to_thread(command_session.run)
 
-            await fsm.item_chosen()  # -> PICK_AND_HAND
-            action_fn = scripted_actions.ACTIONS[item]
-            await asyncio.to_thread(action_fn, controller, config)
+                await fsm.item_chosen()  # -> PICK_AND_HAND
+                await asyncio.to_thread(policy_runtime.run_command, controller, config, command)
+            else:
+                item_session = ItemChoiceSession(
+                    listen=listen,
+                    transcribe=transcribe,
+                    speak=speak,
+                    name=name,
+                    max_attempts=config.dialogue.max_item_attempts,
+                    default_item=config.dialogue.item_choice_default,
+                )
+                item = await asyncio.to_thread(item_session.run)
+
+                await fsm.item_chosen()  # -> PICK_AND_HAND
+                action_fn = (
+                    policy_runtime.ACTIONS[item] if config.robot.action_mode == "policy" else scripted_actions.ACTIONS[item]
+                )
+                await asyncio.to_thread(action_fn, controller, config)
 
             await fsm.handed_over()  # -> THANK_YOU
             await asyncio.to_thread(speak, f"Here you go, {name} -- thanks for stopping by!")
