@@ -1,0 +1,74 @@
+# openWakeWord training config for candybot's "Hey Zen" wake phrase.
+# Copied from configs/hey_echo.yaml (the fork's example) -- only the
+# identity/phrase fields below differ; everything else is the author's
+# tuned defaults. See docs/SMOLVLA.md-style docs/WAKEWORD.md for the
+# full candybot-side workflow this plugs into.
+#
+# Usage (from inside training/wakeword/trainer/):
+#   python train_wakeword.py --config configs/hey_zen.yaml
+
+# ── Model identity ──
+model_name: "hey_zen"
+
+# ── Target phrase(s) ──
+target_phrase:
+  - "hey zen"
+
+# ── Explicit negatives ──
+# Phonetically similar/confusable words and phrases "Hey Zen" shouldn't
+# trigger on, on top of the pipeline's own auto-generated adversarial
+# negatives (CMU phoneme substitution).
+custom_negative_phrases:
+  - "hey ten"
+  - "hey then"
+  - "hey when"
+  - "hey friend"
+  - "hey chen"
+  - "they zen"
+  - "hazen"
+  - "amazon"
+  - "zen"
+  - "hey"
+
+# ── Sample generation ──
+n_samples: 50000           # positive training clips
+n_samples_val: 5000        # positive validation clips
+tts_batch_size: 25         # Piper TTS batch size (reduce for low VRAM GPUs)
+augmentation_batch_size: 16
+augmentation_rounds: 1
+
+# ── Paths (resolved by train_wakeword.py) ──
+piper_sample_generator_path: "data/piper-sample-generator"
+output_dir: "output"
+
+rir_paths:
+  - "data/mit_rirs"
+
+background_paths:
+  - "data/audioset_16k"
+  - "data/fma_small"
+
+background_paths_duplication_rate:
+  - 1
+  - 1
+
+# ── Pre-computed feature files ──
+false_positive_validation_data_path: "data/validation_set_features.npy"
+
+feature_data_files:
+  "ACAV100M_sample": "data/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+
+# ── Batch composition ──
+batch_n_per_class:
+  "ACAV100M_sample": 1024
+  "adversarial_negative": 50
+  "positive": 50
+
+# ── Model architecture ──
+model_type: "dnn"
+layer_size: 32        # 32 = fast CPU inference; bump to 64 if "hey zen" proves hard to distinguish from negatives
+
+# ── Training parameters ──
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2

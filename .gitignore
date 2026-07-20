@@ -22,6 +22,16 @@ datasets/
 # Voice models (downloaded, not vendored)
 models/
 
+# Wake word training: huge downloaded datasets + isolated venv, regenerable.
+# Trained models get copied to candybot/models/wakeword/ (exempted below,
+# small + hard to regenerate quickly) -- trainer/export/ is just the
+# intermediate/duplicate location, not the authoritative copy.
+training/wakeword/trainer/.venv-wakeword/
+training/wakeword/trainer/data/
+training/wakeword/trainer/output/
+training/wakeword/trainer/export/
+!candybot/models/wakeword/*.onnx*
+
 # OS / editor
 .DS_Store
 .vscode/
