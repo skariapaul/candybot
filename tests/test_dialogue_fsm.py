@@ -48,6 +48,15 @@ def test_name_capture_strips_filler_and_titlecases():
     assert session.run() == "Paul"
 
 
+def test_name_capture_strips_leading_interjection_before_filler_phrase():
+    # Regression test: a real live-demo transcript, "All right, my name is Paul",
+    # wasn't stripped at all because the old filler regex only matched at
+    # position 0 -- the leading "All right," defeated it entirely.
+    voice = ScriptedVoice([_confident("All right, my name is Paul"), _confident("yes")])
+    session = NameCaptureSession(listen=voice.listen, transcribe=voice.transcribe, speak=voice.speak)
+    assert session.run() == "Paul"
+
+
 def test_name_capture_retries_on_no_then_succeeds():
     voice = ScriptedVoice(
         [

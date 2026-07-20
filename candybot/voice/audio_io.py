@@ -86,20 +86,42 @@ def play_audio(samples: np.ndarray, sample_rate: int, device: int | None = None)
 
 
 def _trailing_silence_stop_condition(
-    sample_rate: int, silence_s: float = 1.2, energy_threshold: float = 0.01
+    sample_rate: int,
+    silence_s: float = 1.2,
+    silence_multiplier: float = 2.5,
+    absolute_floor: float = 0.003,
 ) -> Callable[[np.ndarray], bool]:
-    """Naive, dependency-free energy-threshold trailing-silence detector: stops once
-    the trailing `silence_s` seconds are all quiet, as long as speech was already
-    captured (so it doesn't stop immediately on leading silence).
+    """Adaptive trailing-silence detector: stops once the trailing `silence_s`
+    seconds drop back near this recording's own observed noise floor, as long
+    as speech was already captured (so it doesn't stop immediately on leading
+    silence).
+
+    A fixed global energy threshold doesn't generalize across mics/rooms --
+    measured live, a hardcoded 0.01 RMS threshold sat *above* the actual
+    ambient noise floor on one real setup, so trailing silence never
+    registered and every recording ran to its full max_duration_s regardless
+    of how quickly the visitor actually finished talking. Instead, the
+    quietest ~100ms block observed so far in *this* recording is tracked as a
+    running floor estimate (refined continuously, never reset upward), and
+    the trailing window must drop within `silence_multiplier` of that floor.
     """
     silence_samples = int(sample_rate * silence_s)
+    state = {"floor": None, "seen": 0}
 
     def should_continue(audio: np.ndarray) -> bool:
+        new_block = audio[state["seen"] :]
+        state["seen"] = len(audio)
+        if len(new_block) > 0:
+            block_rms = float(np.sqrt(np.mean(new_block.astype(np.float64) ** 2)))
+            state["floor"] = block_rms if state["floor"] is None else min(state["floor"], block_rms)
+
         if len(audio) < silence_samples:
             return True
+
+        threshold = max(absolute_floor, (state["floor"] or absolute_floor) * silence_multiplier)
         tail_rms = float(np.sqrt(np.mean(audio[-silence_samples:] ** 2)))
-        has_speech = float(np.sqrt(np.mean(audio**2))) > energy_threshold
-        return not (has_speech and tail_rms < energy_threshold)
+        has_speech = float(np.sqrt(np.mean(audio.astype(np.float64) ** 2))) > threshold
+        return not (has_speech and tail_rms < threshold)
 
     return should_continue
 

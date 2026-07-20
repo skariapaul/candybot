@@ -22,14 +22,26 @@ ListenFn = Callable[[], np.ndarray]
 TranscribeFn = Callable[[np.ndarray], TranscriptionResult]
 SpeakFn = Callable[[str], None]
 
-_FILLER_PATTERNS = [
-    r"^my name is\s+",
-    r"^i am\s+",
-    r"^i'm\s+",
-    r"^it's\s+",
-    r"^its\s+",
-    r"^this is\s+",
-    r"^call me\s+",
+# Leading discourse markers/interjections people say before actually starting
+# their sentence ("All right, my name is Paul") -- stripped repeatedly so
+# stacked ones ("well, um, my name is...") all go, before name-pattern
+# matching below even runs.
+_LEADING_INTERJECTIONS = re.compile(
+    r"^(?:um+|uh+|well|so|okay|ok|alright|all right|yeah|yep|hi|hello|hey)[,.\s]+", re.IGNORECASE
+)
+
+# Searched (not just prefix-matched) against the cleaned text, so a leading
+# interjection the regex above didn't anticipate can't defeat name extraction
+# the way it did before -- "All right, my name is Paul" only failed originally
+# because "^my name is" required the phrase at position 0.
+_NAME_PATTERNS = [
+    re.compile(r"\bmy name is\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bmy name's\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bi am\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bi'm\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bthis is\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bcall me\s+(.+)", re.IGNORECASE),
+    re.compile(r"\bit'?s\s+(.+)", re.IGNORECASE),
 ]
 
 _YES_WORDS = {"yes", "yeah", "yep", "yup", "correct", "right", "sure"}
@@ -41,8 +53,18 @@ _CANDY_WORDS = {"candy", "candies", "sweet", "sweets", "gummy", "gummies"}
 
 def _strip_fillers(text: str) -> str:
     cleaned = text.strip()
-    for pattern in _FILLER_PATTERNS:
-        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+    prev = None
+    while prev != cleaned:
+        prev = cleaned
+        cleaned = _LEADING_INTERJECTIONS.sub("", cleaned).strip()
+
+    for pattern in _NAME_PATTERNS:
+        match = pattern.search(cleaned)
+        if match:
+            cleaned = match.group(1)
+            break
+
     return cleaned.strip().strip(".!,").title()
 
 
