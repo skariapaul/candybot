@@ -23,14 +23,14 @@ import numpy as np
 from candybot.config import CandybotConfig, load_config
 from candybot.dashboard import state as dashboard_state
 from candybot.hardware_probe import get_device
-from candybot.orchestrator.events import StateChangeEvent, TranscriptEvent
+from candybot.orchestrator.events import SpeechEvent, StateChangeEvent, TranscriptEvent
 from candybot.orchestrator.fsm import CandybotFSM
 from candybot.robot import scripted_actions
 from candybot.robot.so101_controller import SO101Controller
 from candybot.voice import tts
 from candybot.voice.asr import TranscriptionResult
 from candybot.voice.asr import transcribe as asr_transcribe
-from candybot.voice.audio_io import find_device, listen_utterance, wait_for_trigger
+from candybot.voice.audio_io import find_device, listen_utterance, play_audio, wait_for_trigger
 from candybot.voice.dialogue import ItemChoiceSession, NameCaptureSession
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,15 @@ async def run_demo_loop(config: CandybotConfig | None = None) -> None:
     def speak(text: str) -> None:
         logger.info(f"candybot: {text}")
         publish_transcript("candybot", text)
-        tts.speak(text, config.voice.tts.voice_model, output_device=output_device)
+
+        samples, sample_rate = tts.synthesize(text, config.voice.tts.voice_model)
+        envelope = tts.compute_envelope(samples, sample_rate)
+        duration_s = len(samples) / sample_rate
+        asyncio.run_coroutine_threadsafe(
+            dashboard_state.publish("speech", SpeechEvent(envelope=envelope, duration_s=duration_s)), loop
+        )
+
+        play_audio(samples, sample_rate, device=output_device)
 
     def listen() -> np.ndarray:
         return listen_utterance(config)

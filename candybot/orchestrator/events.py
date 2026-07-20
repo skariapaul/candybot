@@ -30,3 +30,17 @@ class DialogueEvent:
     stage: str
     detail: str = ""
     timestamp: float = field(default_factory=time.time)
+
+
+@dataclass
+class SpeechEvent:
+    """A pre-computed volume envelope for one TTS utterance, published right
+    before server-side playback starts (see run.py's speak() closure) so
+    Zen's mouth animation (candybot/dashboard/static/avatar.js) can track
+    roughly along without the browser touching the actual audio -- audio
+    stays server-side through whichever audio.profile is active.
+    """
+
+    envelope: list[float]  # RMS amplitude per ~50ms window, normalized 0..1
+    duration_s: float
+    timestamp: float = field(default_factory=time.time)

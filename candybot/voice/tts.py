@@ -47,6 +47,25 @@ def synthesize(text: str, voice_model: str, models_dir: str = "models") -> tuple
     return samples, _sample_rate_for(model_path)
 
 
+def compute_envelope(samples: np.ndarray, sample_rate: int, window_s: float = 0.05) -> list[float]:
+    """RMS amplitude per ~50ms window, normalized 0..1 by this utterance's own
+    peak -- used to drive Zen's mouth animation (candybot/dashboard/static/
+    avatar.js) via a pre-computed timeline rather than live audio analysis in
+    the browser. See orchestrator/run.py's speak() closure.
+    """
+    window_size = max(1, int(sample_rate * window_s))
+    n_windows = max(1, len(samples) // window_size)
+    envelope = []
+    for i in range(n_windows):
+        chunk = samples[i * window_size : (i + 1) * window_size]
+        rms = float(np.sqrt(np.mean(chunk.astype(np.float64) ** 2))) if len(chunk) else 0.0
+        envelope.append(rms)
+    peak = max(envelope) if envelope else 0.0
+    if peak > 1e-6:
+        envelope = [min(1.0, v / peak) for v in envelope]
+    return envelope
+
+
 def speak(text: str, voice_model: str, output_device: int | None = None) -> None:
     from candybot.voice.audio_io import play_audio
 

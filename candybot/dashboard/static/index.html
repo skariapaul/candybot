@@ -72,21 +72,25 @@
     </section>
 
     <main class="layout">
-      <section class="camera-panel">
+      <section class="avatar-panel">
         <div class="panel-head">
-          <h2>Wrist camera</h2>
-          <span id="camera-status" class="muted-tag">connecting…</span>
+          <h2>Zen</h2>
+          <span id="dialogue-stage" class="muted-tag">—</span>
         </div>
-        <div class="camera-frame">
-          <img id="camera-feed" src="/camera" alt="Live wrist camera feed" />
-        </div>
-        <div class="dialogue-strip">
-          <span class="muted-label">Dialogue</span>
-          <span id="dialogue-stage">—</span>
-        </div>
+        <div id="avatar-container" class="avatar-container"></div>
       </section>
 
       <section class="side-panel">
+        <div class="camera-block">
+          <div class="panel-head">
+            <h2>Wrist camera</h2>
+            <span id="camera-status" class="muted-tag">connecting…</span>
+          </div>
+          <div class="camera-frame">
+            <img id="camera-feed" src="/camera" alt="Live wrist camera feed" />
+          </div>
+        </div>
+
         <div class="panel-head">
           <h2>Transcript</h2>
         </div>
@@ -95,6 +99,6 @@
     </main>
   </div>
 
-  <script src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

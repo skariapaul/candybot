@@ -1,3 +1,5 @@
+import { initAvatar, playEnvelope, setAvatarState } from "/avatar.js";
+
 const STATE_LABELS = {
   IDLE: "Idle",
   GREET: "Greeting",
@@ -31,6 +33,7 @@ const statVramDetail = document.getElementById("stat-vram-detail");
 function setState(state) {
   stateBadge.dataset.state = state;
   stateLabel.textContent = STATE_LABELS[state] || state;
+  setAvatarState(state);
 }
 
 function addTranscriptLine(speaker, text) {
@@ -160,6 +163,9 @@ function handleMessage(msg) {
     case "telemetry":
       applyTelemetry(msg.data);
       break;
+    case "speech":
+      playEnvelope(msg.data.envelope, msg.data.duration_s);
+      break;
   }
 }
 
@@ -191,4 +197,5 @@ cameraFeed.onload = () => {
   cameraStatus.textContent = "live";
 };
 
+initAvatar("avatar-container");
 connect();
