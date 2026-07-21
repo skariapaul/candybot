@@ -33,4 +33,19 @@ if failed:
 import runpy  # noqa: E402
 
 sys.argv[0] = "openwakeword.train"
-runpy.run_module("openwakeword.train", run_name="__main__", alter_sys=True)
+try:
+    runpy.run_module("openwakeword.train", run_name="__main__", alter_sys=True)
+except ModuleNotFoundError as exc:
+    # openwakeword.train unconditionally also converts the trained ONNX model
+    # to TFLite format (via onnx_tf + tensorflow) right after the ONNX export
+    # -- which this project doesn't use (candybot loads the ONNX model via
+    # onnxruntime) and doesn't install. By this point export_model() has
+    # already written the .onnx file successfully, so treat a missing onnx_tf
+    # as a benign skip of an optional extra output rather than a pipeline
+    # failure.
+    if "onnx_tf" in str(exc):
+        print(f"NOTE: skipping optional ONNX->TFLite conversion ({exc}); "
+              "the .onnx export this project actually uses already completed.",
+              file=sys.stderr)
+    else:
+        raise
