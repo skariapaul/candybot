@@ -276,6 +276,15 @@ def step_download() -> bool:
     else:
         log.info("  FMA subset already present")
 
+    # 3g — openWakeWord's own melspectrogram/embedding/VAD models. AudioFeatures
+    # (used by the augment step) loads these from inside the installed
+    # openwakeword package itself, not from DATA_DIR -- nothing else in this
+    # pipeline fetches them, so without this the augment step fails deep in a
+    # third-party call with a bare "file doesn't exist".
+    import openwakeword.utils
+    log.info("  Checking openWakeWord feature-extraction models …")
+    openwakeword.utils.download_models()
+
     return True
 
 
@@ -328,6 +337,15 @@ def step_verify_data() -> bool:
         ok = False
     else:
         log.info("  OK: piper-sample-generator installed")
+
+    # openWakeWord's own feature-extraction models (see step_download)
+    import openwakeword
+    oww_models_dir = Path(openwakeword.__file__).parent / "resources" / "models"
+    if not (oww_models_dir / "melspectrogram.onnx").exists():
+        log.error("  MISSING: %s (run download step)", oww_models_dir / "melspectrogram.onnx")
+        ok = False
+    else:
+        log.info("  OK: openwakeword melspectrogram.onnx present")
 
     return ok
 
