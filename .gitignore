@@ -30,6 +30,13 @@ training/wakeword/trainer/.venv-wakeword/
 training/wakeword/trainer/data/
 training/wakeword/trainer/output/
 training/wakeword/trainer/export/
+
+# Negating a file pattern doesn't work if a parent dir is already excluded
+# (git won't descend into an ignored directory to re-check it) -- models/
+# above and *.onnx further up both exclude this path, so every ancestor
+# directory needs its own negation too, not just the final file pattern.
+!candybot/models/
+!candybot/models/wakeword/
 !candybot/models/wakeword/*.onnx*
 
 # OS / editor
