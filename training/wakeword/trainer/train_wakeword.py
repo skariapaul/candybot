@@ -34,6 +34,16 @@ from typing import Callable
 import requests
 import yaml
 
+# Force a headless matplotlib backend. When invoked from a Jupyter %%bash
+# cell (e.g. the MI300X notebook), MPLBACKEND is inherited from Jupyter's
+# own kernel env (module://matplotlib_inline.backend_inline), but that
+# backend module only exists in Jupyter's environment, not this training
+# venv -- causing "not a valid value for backend" as soon as anything
+# (e.g. openwakeword.data, imported during apply-patches) pulls in
+# matplotlib. This script never plots interactively, so override
+# unconditionally rather than just providing a default.
+os.environ["MPLBACKEND"] = "Agg"
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
