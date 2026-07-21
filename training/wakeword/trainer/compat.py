@@ -98,6 +98,20 @@ def verify_all() -> dict[str, bool]:
     except ImportError:
         results["pkg_resources"] = False
 
+    # ── julius fft_conv1d on GPU (the actual op that crashed with HIPFFT_PARSE_ERROR) ──
+    try:
+        import torch
+        from julius.fftconv import fft_conv1d
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        x = torch.randn(1, 1, 64, device=device)
+        w = torch.randn(1, 1, 8, device=device)
+        out = fft_conv1d(x, w)
+        results["julius.fft_conv1d"] = out.shape[-1] > 0
+    except Exception as exc:
+        results["julius.fft_conv1d"] = False
+        log.warning("  verify julius.fft_conv1d  FAILED: %s", exc)
+
     # ── scipy.special.sph_harm (needed by the `acoustics` package) ──
     try:
         import acoustics.directivity  # noqa: F401
@@ -315,6 +329,43 @@ def _patch_scipy_sph_harm() -> str:
     return "applied (shim over sph_harm_y)"
 
 
+def _patch_julius_cpu_fft() -> str:
+    """Force ``julius``'s FFT-based conv (used internally by torch-audiomentations'
+    resampling low-pass filters, invoked during the augment step) onto CPU.
+
+    Some ROCm/hipFFT builds raise ``RuntimeError: cuFFT error: HIPFFT_PARSE_ERROR``
+    from ``torch.fft.rfft`` on GPU tensors -- seen on this host with the rocm6.3
+    PyTorch wheel against a ROCm 7.1.1 driver stack, where FFT ops are far more
+    version-sensitive than the conv/matmul ops elsewhere in this pipeline that
+    work fine. The FFTs julius runs here are tiny (fixed-size lowpass filter
+    kernels), so moving them to CPU costs nothing measurable against the rest of
+    augmentation, and sidesteps the crash entirely rather than working around a
+    specific hipFFT version.
+    """
+    try:
+        import julius.fftconv as jfft
+    except ImportError:
+        return "skipped (julius not installed)"
+
+    if getattr(jfft, "_oww_cpu_fft_patched", False):
+        return "ok (already patched)"
+
+    orig_rfft = jfft._new_rfft
+    orig_irfft = jfft._new_irfft
+
+    def _rfft_cpu(x):
+        return orig_rfft(x.cpu()).to(x.device)
+
+    def _irfft_cpu(x, length: int):
+        device = x.device
+        return orig_irfft(x.cpu(), length).to(device)
+
+    jfft._rfft = _rfft_cpu
+    jfft._irfft = _irfft_cpu
+    jfft._oww_cpu_fft_patched = True
+    return "applied (rfft/irfft forced to CPU to avoid hipFFT crash)"
+
+
 def _patch_oww_data_sample_rate() -> str:
     """Suppress openwakeword's sample-rate ValueError.
 
@@ -350,5 +401,6 @@ _PATCHES = [
     ("torchaudio.info", _patch_torchaudio_info),
     ("torchaudio.list_audio_backends", _patch_torchaudio_list_backends),
     ("piper generate_samples model=", _patch_piper_generate_samples),
+    ("julius CPU fft (hipFFT workaround)", _patch_julius_cpu_fft),
     ("oww data.py sample rate", _patch_oww_data_sample_rate),
 ]
