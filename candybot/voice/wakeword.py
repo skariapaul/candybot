@@ -1,15 +1,19 @@
 """Always-listening wake-word trigger via openWakeWord.
 
-Uses an interim pretrained community model ("hey_jarvis") until a custom
-"hey candybot" model is trained -- flagged as a stretch goal, see
-docs/VOICE_MODES.md. Fully local, ONNX-based, no API key.
+Loads either the custom-trained "hey_zen" model (see training/wakeword/) from
+candybot/models/wakeword/, or one of openWakeWord's bundled pretrained
+community models (e.g. "hey_jarvis") by name. Fully local, ONNX-based, no API
+key.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 
 import numpy as np
+import openwakeword
 import sounddevice as sd
 from openwakeword.model import Model
 
@@ -18,12 +22,33 @@ logger = logging.getLogger(__name__)
 _TARGET_SR = 16000  # what openWakeWord's models expect
 _CHUNK_DURATION_S = 0.08  # ~80ms chunks, openWakeWord's expected granularity
 
-_model_cache: dict[str, Model] = {}
+_CUSTOM_MODELS_DIR = Path(__file__).resolve().parent.parent / "models" / "wakeword"
+
+# (Model, actual-prediction-key) -- openWakeWord derives its own internal key
+# from the loaded file's basename (e.g. "hey_jarvis_v0.1.onnx" -> "hey_jarvis_v0.1"),
+# which doesn't necessarily match the config's model_name, so it's captured
+# once here at load time rather than assumed.
+_model_cache: dict[str, tuple[Model, str]] = {}
 
 
-def _get_model(model_name: str) -> Model:
+def _resolve_model_path(model_name: str) -> str:
+    custom_path = _CUSTOM_MODELS_DIR / f"{model_name}.onnx"
+    if custom_path.exists():
+        return str(custom_path)
+    for path in openwakeword.get_pretrained_model_paths():
+        if os.path.basename(path).startswith(model_name):
+            return path
+    raise FileNotFoundError(
+        f"No wake-word model found for '{model_name}' "
+        f"(checked {custom_path} and openWakeWord's bundled pretrained models)"
+    )
+
+
+def _get_model(model_name: str) -> tuple[Model, str]:
     if model_name not in _model_cache:
-        _model_cache[model_name] = Model(wakeword_models=[model_name])
+        model = Model(wakeword_model_paths=[_resolve_model_path(model_name)])
+        loaded_key = next(iter(model.models))  # the key openWakeWord actually assigned
+        _model_cache[model_name] = (model, loaded_key)
     return _model_cache[model_name]
 
 
@@ -36,7 +61,7 @@ def wait_for_wake_word(model_name: str, threshold: float, device: int | None, sa
     48kHz), the same class of PortAudioError play_audio() works around for
     output -- see audio_io.py.
     """
-    model = _get_model(model_name)
+    model, loaded_key = _get_model(model_name)
     native_sr = int(sd.query_devices(device, kind="input")["default_samplerate"])
     chunk_size = max(1, int(round(native_sr * _CHUNK_DURATION_S)))
 
@@ -49,7 +74,7 @@ def wait_for_wake_word(model_name: str, threshold: float, device: int | None, sa
             if native_sr != _TARGET_SR:
                 audio = _resample_int16(audio, native_sr, _TARGET_SR)
             predictions = model.predict(audio)
-            score = predictions.get(model_name, 0.0)
+            score = predictions.get(loaded_key, 0.0)
             if score >= threshold:
                 logger.info(f"Wake word '{model_name}' detected (score={score:.2f})")
                 return

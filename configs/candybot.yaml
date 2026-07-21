@@ -64,7 +64,7 @@ voice:
   push_to_talk:
     key: space                  # read from this process's own terminal (see voice/push_to_talk.py) -- booth button will work the same way as long as the terminal has focus
   wake_word:
-    model: hey_jarvis            # interim community model; a custom "hey candybot" model is a stretch goal
+    model: hey_zen                # custom-trained model (see training/wakeword/), trained on MI300X 2026-07-21
     threshold: 0.5
   asr:
     model_size: base.en
