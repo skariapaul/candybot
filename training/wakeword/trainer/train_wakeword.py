@@ -68,7 +68,7 @@ URLS = {
 MIN_SIZES = {
     "openwakeword_features_ACAV100M_2000_hrs_16bit.npy": 5_000_000_000,   # ~7.5 GB
     "validation_set_features.npy":                         30_000_000,      # ~40 MB
-    "piper-sample-generator/models/en_US-libritts_r-medium.pt": 600_000_000,  # ~800 MB
+    "piper-sample-generator/models/en_US-libritts_r-medium.pt": 150_000_000,  # actual hosted checkpoint is ~195 MB, not the ~800 MB the upstream README claims
 }
 
 logging.basicConfig(
@@ -291,7 +291,10 @@ def step_verify_data() -> bool:
             sz_mb = fp.stat().st_size / (1 << 20)
             log.info("  OK: %-60s  %.0f MB", relpath, sz_mb)
 
-    # Directories that should contain files
+    # Directories that should contain files. mit_rirs is allowed to be empty:
+    # the HF loading script for davidscripka/MIT_environmental_impulse_responses
+    # relies on trust_remote_code, which recent `datasets` versions reject, so
+    # step_download() deliberately leaves it empty and trains without RIRs.
     for name in ["mit_rirs", "audioset_16k", "fma_small"]:
         d = DATA_DIR / name
         if not d.is_dir():
@@ -300,8 +303,11 @@ def step_verify_data() -> bool:
         else:
             n = len(list(d.iterdir()))
             if n == 0:
-                log.error("  EMPTY dir: %s", d)
-                ok = False
+                if name == "mit_rirs":
+                    log.info("  OK: %-60s  0 files (RIR augmentation disabled)", name + "/")
+                else:
+                    log.error("  EMPTY dir: %s", d)
+                    ok = False
             else:
                 log.info("  OK: %-60s  %d files", name + "/", n)
 
