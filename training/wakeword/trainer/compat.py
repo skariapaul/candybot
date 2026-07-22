@@ -112,6 +112,18 @@ def verify_all() -> dict[str, bool]:
         results["julius.fft_conv1d"] = False
         log.warning("  verify julius.fft_conv1d  FAILED: %s", exc)
 
+    # ── torch DataLoader num_workers forced to 0 ──
+    try:
+        import torch
+        from torch.utils.data import DataLoader, TensorDataset
+
+        ds = TensorDataset(torch.zeros(4, 2), torch.zeros(4))
+        dl = DataLoader(ds, batch_size=2, num_workers=2, prefetch_factor=4)
+        results["torch.DataLoader no shm workers"] = dl.num_workers == 0
+    except Exception as exc:
+        results["torch.DataLoader no shm workers"] = False
+        log.warning("  verify torch.DataLoader no shm workers  FAILED: %s", exc)
+
     # ── scipy.special.sph_harm (needed by the `acoustics` package) ──
     try:
         import acoustics.directivity  # noqa: F401
@@ -366,6 +378,39 @@ def _patch_julius_cpu_fft() -> str:
     return "applied (rfft/irfft forced to CPU to avoid hipFFT crash)"
 
 
+def _patch_torch_dataloader_no_shm_workers() -> str:
+    """Force ``torch.utils.data.DataLoader`` to ``num_workers=0`` (no separate
+    worker processes, no shared-memory IPC between them).
+
+    ``openwakeword.train``'s X_train DataLoader uses
+    ``num_workers=os.cpu_count()//2, prefetch_factor=16`` -- on a many-core
+    host that's a lot of worker processes, each holding up to 16 full
+    prefetched batches in ``/dev/shm``. On this MI300X JupyterLab pod that
+    blew past whatever (small, container-default) ``/dev/shm`` size is
+    configured, crashing with ``RuntimeError: DataLoader worker ... killed by
+    signal: Bus error ... insufficient shared memory``. We don't control the
+    pod's ``/dev/shm`` allocation, so avoid needing it at all -- this
+    training set is small enough that single-process loading stays plenty
+    fast (100+ it/s observed even single-process).
+    """
+    import torch.utils.data as tud
+
+    if getattr(tud.DataLoader, "_oww_no_shm_patched", False):
+        return "ok (already patched)"
+
+    orig_init = tud.DataLoader.__init__
+
+    def _init_no_workers(self, *args, **kwargs):
+        if kwargs.get("num_workers", 0):
+            kwargs["num_workers"] = 0
+            kwargs.pop("prefetch_factor", None)  # only valid when num_workers > 0
+        return orig_init(self, *args, **kwargs)
+
+    tud.DataLoader.__init__ = _init_no_workers
+    tud.DataLoader._oww_no_shm_patched = True
+    return "applied (num_workers forced to 0, avoids /dev/shm entirely)"
+
+
 def _patch_oww_data_sample_rate() -> str:
     """Suppress openwakeword's sample-rate ValueError.
 
@@ -402,5 +447,6 @@ _PATCHES = [
     ("torchaudio.list_audio_backends", _patch_torchaudio_list_backends),
     ("piper generate_samples model=", _patch_piper_generate_samples),
     ("julius CPU fft (hipFFT workaround)", _patch_julius_cpu_fft),
+    ("torch DataLoader no shm workers", _patch_torch_dataloader_no_shm_workers),
     ("oww data.py sample rate", _patch_oww_data_sample_rate),
 ]
