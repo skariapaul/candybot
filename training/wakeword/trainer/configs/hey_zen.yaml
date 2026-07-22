@@ -70,7 +70,11 @@ layer_size: 32        # 32 = fast CPU inference; bump to 64 if "hey zen" proves 
 
 # ── Training parameters ──
 steps: 50000
-max_negative_weight: 1500
+max_negative_weight: 300               # was 1500, and the FP-target gate doubled it twice anyway (1500->3000->
+                                        # 6000) -- that 4x-escalated model produced near-zero, nearly flat scores
+                                        # on real mic audio even during clear "hey zen" utterances (looked fine
+                                        # on synthetic validation only). Lowering the base substantially so even
+                                        # if doubled twice again it lands at 1200, well under the original 1500.
 target_false_positives_per_hour: 0.2   # tried loosening to 2.0 to trade FP margin for recall, but this only
                                         # gates whether max_negative_weight doubles between sequences 1->2->3
                                         # -- validation FP/hr after sequence 1 exceeded even 2.0/hr, so the
