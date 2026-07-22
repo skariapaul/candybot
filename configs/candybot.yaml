@@ -65,7 +65,11 @@ voice:
     key: space                  # read from this process's own terminal (see voice/push_to_talk.py) -- booth button will work the same way as long as the terminal has focus
   wake_word:
     model: hey_zen                # custom-trained model (see training/wakeword/), trained on MI300X 2026-07-21
-    threshold: 0.5
+    threshold: 0.3                # lowered from 0.5 -- measured 51.6% recall / 0.0 FP-per-hour at training time
+                                   # left plenty of FP margin unused; trading it for better real-world recall.
+                                   # Tune further live: higher if false triggers happen, lower if it still
+                                   # misses "hey zen" too often (see training/wakeword/trainer/README.md's
+                                   # Threshold Tuning table).
   asr:
     model_size: base.en
     vad_filter: true

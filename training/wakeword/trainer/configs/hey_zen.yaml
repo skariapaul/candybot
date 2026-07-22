@@ -71,6 +71,10 @@ layer_size: 32        # 32 = fast CPU inference; bump to 64 if "hey zen" proves 
 # ── Training parameters ──
 steps: 50000
 max_negative_weight: 1500
-target_false_positives_per_hour: 2.0   # was 0.2 -- that produced 0.0 measured FP/hr but only 51.6% recall,
-                                        # too conservative for live use; loosening to trade some of that
-                                        # margin back for better recall
+target_false_positives_per_hour: 0.2   # tried loosening to 2.0 to trade FP margin for recall, but this only
+                                        # gates whether max_negative_weight doubles between sequences 1->2->3
+                                        # -- validation FP/hr after sequence 1 exceeded even 2.0/hr, so the
+                                        # doubling fired identically either way and the retrain just came out
+                                        # worse from run-to-run noise (70.4/40.8/0.0 vs the deployed
+                                        # 75.6/51.6/0.0). Reverted; tune voice.wake_word.threshold at runtime
+                                        # instead, see configs/candybot.yaml.
